@@ -1,0 +1,16 @@
+{
+  "name": "Exam Paper Generator",
+  "short_name": "ExamGen",
+  "description": "AI-powered exam paper generator.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "name": "AI Question Paper Generator",
+  "description": "Generate structured and balanced question papers following Bloom's taxonomy with AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
