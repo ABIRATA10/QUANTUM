@@ -1,11 +1,11 @@
 {
-  "name": "Exam Paper Generator",
-  "short_name": "ExamGen",
-  "description": "AI-powered exam paper generator.",
+  "name": "Exam Author",
+  "short_name": "ExamAuthor",
+  "description": "AI-powered exam paper authoring tool.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#4f46e5",
+  "theme_color": "#b48b59",
   "icons": [
     {
       "src": "/favicon.ico",

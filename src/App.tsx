@@ -290,16 +290,21 @@ function App() {
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900 font-sans">
       {/* Header (Hidden in Print) */}
-      <header className="bg-white border-b border-neutral-200 sticky top-0 z-10 print:hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-indigo-600">
-            <Sparkles className="w-6 h-6" />
-            <h1 className="text-xl font-bold tracking-tight">AI Exam Forge</h1>
+      <header className="bg-[#4d3826] border-b border-[#3b2a1c] sticky top-0 z-10 print:hidden relative overflow-hidden text-[#d8b88c]">
+        {/* Subtle geometric grid background overlay for the header */}
+        <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative z-10">
+          <div className="flex items-center space-x-3 text-[#e6cda3]">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 22S3 18 3 9V5L12 2L21 5V9C21 18 12 22 12 22Z" stroke="#b48b59" strokeWidth="1.5" fill="#362517" strokeLinecap="round" strokeLinejoin="round"/>
+              <text x="12" y="16.5" textAnchor="middle" fontSize="13" fontFamily="serif" fontWeight="400" fill="#fdfaf3">EA</text>
+            </svg>
+            <h1 className="text-xl tracking-[0.25em] font-serif uppercase text-[#fdfaf3]">Exam Author</h1>
           </div>
           <nav className="flex space-x-1">
             <button
               onClick={() => setActiveTab('create')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'create' ? 'bg-indigo-50 text-indigo-700' : 'text-neutral-600 hover:bg-neutral-100'}`}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'create' ? 'bg-[#3b2a1c] text-[#e6cda3]' : 'text-[#b48b59] hover:bg-[#5b432e] hover:text-[#e6cda3]'}`}
             >
               <div className="flex items-center space-x-2">
                 <Settings className="w-4 h-4" />
@@ -309,7 +314,7 @@ function App() {
             <button
               onClick={() => setActiveTab('paper')}
               disabled={questions.length === 0}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${questions.length === 0 ? 'opacity-50 cursor-not-allowed' : ''} ${activeTab === 'paper' ? 'bg-indigo-50 text-indigo-700' : 'text-neutral-600 hover:bg-neutral-100'}`}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${questions.length === 0 ? 'opacity-50 cursor-not-allowed' : ''} ${activeTab === 'paper' ? 'bg-[#3b2a1c] text-[#e6cda3]' : 'text-[#b48b59] hover:bg-[#5b432e] hover:text-[#e6cda3]'}`}
             >
               <div className="flex items-center space-x-2">
                 <FileText className="w-4 h-4" />
@@ -319,7 +324,7 @@ function App() {
             <button
               onClick={() => setActiveTab('analytics')}
               disabled={questions.length === 0}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${questions.length === 0 ? 'opacity-50 cursor-not-allowed' : ''} ${activeTab === 'analytics' ? 'bg-indigo-50 text-indigo-700' : 'text-neutral-600 hover:bg-neutral-100'}`}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${questions.length === 0 ? 'opacity-50 cursor-not-allowed' : ''} ${activeTab === 'analytics' ? 'bg-[#3b2a1c] text-[#e6cda3]' : 'text-[#b48b59] hover:bg-[#5b432e] hover:text-[#e6cda3]'}`}
             >
               <div className="flex items-center space-x-2">
                 <BarChart3 className="w-4 h-4" />
@@ -355,7 +360,7 @@ function App() {
                     type="text"
                     value={params.examTitle}
                     onChange={(e) => setParams({ ...params, examTitle: e.target.value })}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
                     placeholder="e.g. Mid-Term Examination 2026"
                   />
                 </div>
@@ -365,7 +370,7 @@ function App() {
                     type="text"
                     value={params.examSubtitle}
                     onChange={(e) => setParams({ ...params, examSubtitle: e.target.value })}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
                     placeholder="e.g. Department of Computer Science, XYZ University"
                   />
                 </div>
@@ -376,7 +381,7 @@ function App() {
                     type="text"
                     value={params.subject}
                     onChange={(e) => setParams({ ...params, subject: e.target.value })}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
                     placeholder="e.g. Database Management Systems"
                   />
                 </div>
@@ -386,7 +391,7 @@ function App() {
                     type="text"
                     value={params.subjectCode}
                     onChange={(e) => setParams({ ...params, subjectCode: e.target.value })}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
                     placeholder="e.g. CS201"
                   />
                 </div>
@@ -397,7 +402,7 @@ function App() {
                     type="text"
                     value={params.duration}
                     onChange={(e) => setParams({ ...params, duration: e.target.value })}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
                     placeholder="e.g. 3 Hours"
                   />
                 </div>
@@ -406,7 +411,7 @@ function App() {
                   <select
                     value={params.language}
                     onChange={(e) => setParams({ ...params, language: e.target.value })}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm bg-white"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm bg-white"
                   >
                     <option value="English">English</option>
                     <option value="Hindi">Hindi</option>
@@ -422,7 +427,7 @@ function App() {
                     type="text"
                     value={params.gradeLevel}
                     onChange={(e) => setParams({ ...params, gradeLevel: e.target.value })}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
                     placeholder="e.g. Undergraduate Year 2"
                   />
                 </div>
@@ -434,7 +439,7 @@ function App() {
                   value={params.topics}
                   onChange={(e) => setParams({ ...params, topics: e.target.value })}
                   rows={2}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
                   placeholder="e.g. Normalization, SQL Joins, Indexing..."
                 />
               </div>
@@ -445,7 +450,7 @@ function App() {
                   type="text"
                   value={params.questionFormats}
                   onChange={(e) => setParams({ ...params, questionFormats: e.target.value })}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
                   placeholder="e.g. MCQs, Short Answers, Long Answers"
                 />
               </div>
@@ -456,7 +461,7 @@ function App() {
                     type="checkbox"
                     checked={params.includeOrChoices}
                     onChange={(e) => setParams({ ...params, includeOrChoices: e.target.checked })}
-                    className="w-4 h-4 text-indigo-600 border-neutral-300 rounded focus:ring-indigo-500"
+                    className="w-4 h-4 text-amber-600 border-neutral-300 rounded focus:ring-amber-500"
                   />
                   <span className="text-sm font-medium text-neutral-700">Include Internal Choices ("OR" questions for descriptive sections)</span>
                 </label>
@@ -471,7 +476,7 @@ function App() {
                       type="number"
                       value={params.totalMarks}
                       onChange={(e) => setParams({ ...params, totalMarks: parseInt(e.target.value) || 0 })}
-                      className="w-20 px-2 py-1 border border-neutral-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-20 px-2 py-1 border border-neutral-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-500"
                       min={10}
                       max={200}
                     />
@@ -486,7 +491,7 @@ function App() {
                     type="text"
                     value={params.marksPattern || ''}
                     onChange={(e) => setParams({ ...params, marksPattern: e.target.value })}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
                     placeholder="e.g. 10 questions of 1 mark, 5 questions of 4 marks, 2 questions of 10 marks"
                   />
                 </div>
@@ -555,7 +560,7 @@ function App() {
                   value={params.pastQuestionsToAvoid}
                   onChange={(e) => setParams({ ...params, pastQuestionsToAvoid: e.target.value })}
                   rows={4}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm font-mono bg-neutral-50"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm font-mono bg-neutral-50"
                   placeholder="Paste questions you've used in recent exams to ensure AI generates novel variations."
                 />
               </div>
@@ -565,7 +570,7 @@ function App() {
               <button
                 onClick={handleGenerate}
                 disabled={isGenerating}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-md font-medium text-sm transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-[#b48b59] hover:bg-[#a67c4e] text-white px-6 py-2.5 rounded-md font-medium text-sm transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isGenerating ? (
                   <>
@@ -649,12 +654,12 @@ function App() {
                   <div key={q.id} className="relative group">
                     
                     {editingQuestionId === q.id && editingQuestionData ? (
-                      <div className="bg-neutral-50 p-4 rounded-md border border-indigo-200 print:hidden shadow-sm">
+                      <div className="bg-neutral-50 p-4 rounded-md border border-amber-200 print:hidden shadow-sm">
                         <div className="space-y-4">
                           <textarea
                             value={editingQuestionData.text}
                             onChange={e => setEditingQuestionData({ ...editingQuestionData, text: e.target.value })}
-                            className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-500 text-sm h-24"
+                            className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:ring-2 focus:ring-amber-500 text-sm h-24"
                             placeholder="Question text..."
                           />
                           <div className="flex space-x-4 flex-wrap gap-y-4">
@@ -664,7 +669,7 @@ function App() {
                                 type="text"
                                 value={editingQuestionData.id || ''}
                                 onChange={e => setEditingQuestionData({ ...editingQuestionData, id: e.target.value })}
-                                className="w-24 px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-indigo-500"
+                                className="w-24 px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-amber-500"
                               />
                             </div>
                             <div className="space-y-1">
@@ -673,7 +678,7 @@ function App() {
                                 type="number"
                                 value={editingQuestionData.marks}
                                 onChange={e => setEditingQuestionData({ ...editingQuestionData, marks: parseInt(e.target.value) || 0 })}
-                                className="w-20 px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-indigo-500"
+                                className="w-20 px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-amber-500"
                               />
                             </div>
                             <div className="space-y-1">
@@ -688,7 +693,7 @@ function App() {
                                     options: newType === 'mcq' ? (editingQuestionData.options?.length ? editingQuestionData.options : ['', '', '', '']) : undefined
                                   });
                                 }}
-                                className="px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 bg-white"
+                                className="px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-amber-500 bg-white"
                               >
                                 <option value="descriptive">Descriptive (Short/Long)</option>
                                 <option value="mcq">Multiple Choice (MCQ)</option>
@@ -699,7 +704,7 @@ function App() {
                               <select
                                 value={editingQuestionData.difficulty}
                                 onChange={e => setEditingQuestionData({ ...editingQuestionData, difficulty: e.target.value as any })}
-                                className="px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 bg-white"
+                                className="px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-amber-500 bg-white"
                               >
                                 <option>Easy</option>
                                 <option>Medium</option>
@@ -711,7 +716,7 @@ function App() {
                               <select
                                 value={editingQuestionData.blooms_taxonomy}
                                 onChange={e => setEditingQuestionData({ ...editingQuestionData, blooms_taxonomy: e.target.value as any })}
-                                className="px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 bg-white"
+                                className="px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-amber-500 bg-white"
                               >
                                 <option>Remember</option>
                                 <option>Understand</option>
@@ -738,7 +743,7 @@ function App() {
                                         newOpts[i] = e.target.value;
                                         setEditingQuestionData({ ...editingQuestionData, options: newOpts });
                                       }}
-                                      className="flex-1 px-3 py-1.5 border border-neutral-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500"
+                                      className="flex-1 px-3 py-1.5 border border-neutral-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500"
                                       placeholder={`Option ${String.fromCharCode(65 + i)}`}
                                     />
                                   </div>
@@ -753,13 +758,13 @@ function App() {
                                 type="checkbox" 
                                 checked={editingQuestionData.hasOrChoice || false}
                                 onChange={e => setEditingQuestionData({...editingQuestionData, hasOrChoice: e.target.checked})}
-                                className="w-4 h-4 text-indigo-600 rounded border-neutral-300 focus:ring-indigo-500"
+                                className="w-4 h-4 text-amber-600 rounded border-neutral-300 focus:ring-amber-500"
                               />
                               <span className="text-sm font-medium text-neutral-700">Include an "OR" Alternative Question</span>
                             </label>
 
                             {editingQuestionData.hasOrChoice && (
-                              <div className="mt-3 space-y-4 pl-6 border-l-2 border-indigo-100">
+                              <div className="mt-3 space-y-4 pl-6 border-l-2 border-amber-100">
                                 <div className="space-y-1">
                                   <label className="text-xs text-neutral-500">Alternative Question Type</label>
                                   <select
@@ -772,7 +777,7 @@ function App() {
                                         orOptions: newType === 'mcq' ? (editingQuestionData.orOptions?.length ? editingQuestionData.orOptions : ['', '', '', '']) : undefined
                                       });
                                     }}
-                                    className="px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 bg-white"
+                                    className="px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-amber-500 bg-white"
                                   >
                                     <option value="descriptive">Descriptive (Short/Long)</option>
                                     <option value="mcq">Multiple Choice (MCQ)</option>
@@ -781,7 +786,7 @@ function App() {
                                 <textarea
                                   value={editingQuestionData.orText || ''}
                                   onChange={e => setEditingQuestionData({ ...editingQuestionData, orText: e.target.value })}
-                                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-500 text-sm h-24"
+                                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:ring-2 focus:ring-amber-500 text-sm h-24"
                                   placeholder="Alternative Question text..."
                                 />
                                 {editingQuestionData.orType === 'mcq' && (
@@ -799,7 +804,7 @@ function App() {
                                               newOpts[i] = e.target.value;
                                               setEditingQuestionData({ ...editingQuestionData, orOptions: newOpts });
                                             }}
-                                            className="flex-1 px-3 py-1.5 border border-neutral-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500"
+                                            className="flex-1 px-3 py-1.5 border border-neutral-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500"
                                             placeholder={`Option ${String.fromCharCode(65 + i)}`}
                                           />
                                         </div>
@@ -815,7 +820,7 @@ function App() {
                             <button onClick={handleCancelEdit} className="px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-200 rounded flex items-center">
                               <X className="w-4 h-4 mr-1" /> Cancel
                             </button>
-                            <button onClick={handleSaveEdit} className="px-3 py-1.5 text-sm bg-indigo-600 text-white hover:bg-indigo-700 rounded flex items-center">
+                            <button onClick={handleSaveEdit} className="px-3 py-1.5 text-sm bg-[#b48b59] text-white hover:bg-[#a67c4e] rounded flex items-center">
                               <Save className="w-4 h-4 mr-1" /> Save
                             </button>
                           </div>
@@ -919,7 +924,7 @@ function App() {
                           <button
                             onClick={() => handleRegenerateQuestion(q)}
                             disabled={isRegeneratingId !== null}
-                            className="flex items-center space-x-1 text-xs text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded transition-colors disabled:opacity-50 font-medium"
+                            className="flex items-center space-x-1 text-xs text-amber-600 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-2.5 py-1.5 rounded transition-colors disabled:opacity-50 font-medium"
                           >
                             {isRegeneratingId === q.id ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -939,7 +944,7 @@ function App() {
               <div className="mt-8 flex justify-center print:hidden">
                 <button
                   onClick={handleAddQuestion}
-                  className="flex items-center space-x-2 px-4 py-2 border-2 border-dashed border-neutral-300 text-neutral-600 rounded-lg hover:border-indigo-400 hover:text-indigo-600 transition-colors bg-neutral-50/50 hover:bg-indigo-50/50 w-full justify-center font-medium"
+                  className="flex items-center space-x-2 px-4 py-2 border-2 border-dashed border-neutral-300 text-neutral-600 rounded-lg hover:border-amber-400 hover:text-amber-600 transition-colors bg-neutral-50/50 hover:bg-amber-50/50 w-full justify-center font-medium"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Add Question Manually</span>
@@ -963,7 +968,7 @@ function App() {
               </div>
               <button
                 onClick={() => setActiveTab('paper')}
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-700 flex items-center group"
+                className="text-sm font-medium text-amber-600 hover:text-amber-700 flex items-center group"
               >
                 Back to Paper <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
               </button>
