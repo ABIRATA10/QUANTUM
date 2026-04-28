@@ -1,16 +1,18 @@
 import { GoogleGenAI, Type, Schema } from '@google/genai';
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export interface GeneratedQuestion {
   id: string;
   type: 'descriptive' | 'mcq';
   text: string;
   options?: string[];
+  subQuestions?: string[];
   hasOrChoice?: boolean;
   orType?: 'descriptive' | 'mcq';
   orText?: string;
   orOptions?: string[];
+  orSubQuestions?: string[];
   marks: number;
   blooms_taxonomy: 'Remember' | 'Understand' | 'Apply' | 'Analyze' | 'Evaluate' | 'Create';
   difficulty: 'Easy' | 'Medium' | 'Hard';
@@ -45,10 +47,12 @@ const questionSchema: Schema = {
           id: { type: Type.STRING, description: "A unique identifier for the question (e.g. q1, q2)" },
           type: { type: Type.STRING, enum: ['descriptive', 'mcq'], description: "Type of question" },
           text: { type: Type.STRING, description: "The actual question text" },
+          subQuestions: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Array of sub-questions for descriptive questions (e.g., ['(a) Explain X', '(b) Explain Y']). Optional." },
           options: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Array of exactly 4 options if type is mcq. Omit if descriptive." },
           hasOrChoice: { type: Type.BOOLEAN, description: "Set to true if providing an internal 'OR' alternative for this question." },
           orType: { type: Type.STRING, enum: ['descriptive', 'mcq'], description: "Type of the OR alternative question" },
           orText: { type: Type.STRING, description: "The alternative question text if hasOrChoice is true" },
+          orSubQuestions: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Array of sub-questions for the OR alternative. Optional." },
           orOptions: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Options for the alternative question if orType is mcq" },
           marks: { type: Type.INTEGER, description: "Marks allocated to this question" },
           blooms_taxonomy: {
@@ -70,6 +74,11 @@ const questionSchema: Schema = {
 };
 
 export async function generateQuestionPaper(params: PaperGenerationParams): Promise<GeneratedQuestion[]> {
+  const sumWeights = params.difficultyLevels.easy + params.difficultyLevels.medium + params.difficultyLevels.hard || 1;
+  const easyPct = Math.round((params.difficultyLevels.easy / sumWeights) * 100);
+  const mediumPct = Math.round((params.difficultyLevels.medium / sumWeights) * 100);
+  const hardPct = Math.round((params.difficultyLevels.hard / sumWeights) * 100);
+
   const prompt = `
 You are an expert academic curriculum designer and exam creator. 
 Create an exam paper for the following context:
@@ -85,7 +94,7 @@ Requirements:
 1. Generate a diverse set of questions in ${params.language}.
 2. The total sum of marks for all questions MUST EXACTLY equal ${params.totalMarks}.
 ${params.marksPattern ? `3. You MUST STRONGLY ADHERE to the requested marks pattern: ${params.marksPattern}` : ''}
-4. Follow this approximate difficulty distribution: ${params.difficultyLevels.easy}% Easy, ${params.difficultyLevels.medium}% Medium, ${params.difficultyLevels.hard}% Hard.
+4. Follow this approximate difficulty distribution: ${easyPct}% Easy, ${mediumPct}% Medium, ${hardPct}% Hard.
 5. Ensure a good mix of Bloom's Taxonomy levels appropriate for the difficulty.
 6. Provide the output in structured JSON.
 7. For 'mcq' type questions, you MUST provide exactly 4 options in the 'options' array.
@@ -95,6 +104,7 @@ ${params.includeOrChoices ? `8. CRITICAL: You MUST include internal alternatives
    - Provide the text of the alternative question in 'orText'.
    - If the alternative is an MCQ, provide exactly 4 options in 'orOptions'.
    - The alternative question MUST carry the SAME marks as the primary question.` : ""}
+9. If a question carries more than 5 marks and is descriptive, STRONGLY CONSIDER breaking it down into sub-parts using the 'subQuestions' array (e.g. ["a) ...", "b) ..."]). Similarly use 'orSubQuestions' for the OR alternative if applicable.
 
 ${params.pastQuestionsToAvoid ? `CRITICAL: Ensure that NONE of the following past questions or highly similar variants are included in the new paper:\n${params.pastQuestionsToAvoid}` : ''}
   `;
@@ -154,10 +164,12 @@ Output as a structured JSON object matching the requested schema.
       id: { type: Type.STRING },
       type: { type: Type.STRING, enum: ['descriptive', 'mcq'] },
       text: { type: Type.STRING },
+      subQuestions: { type: Type.ARRAY, items: { type: Type.STRING } },
       options: { type: Type.ARRAY, items: { type: Type.STRING } },
       hasOrChoice: { type: Type.BOOLEAN },
       orType: { type: Type.STRING, enum: ['descriptive', 'mcq'] },
       orText: { type: Type.STRING },
+      orSubQuestions: { type: Type.ARRAY, items: { type: Type.STRING } },
       orOptions: { type: Type.ARRAY, items: { type: Type.STRING } },
       marks: { type: Type.INTEGER },
       blooms_taxonomy: {

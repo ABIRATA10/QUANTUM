@@ -173,12 +173,22 @@ function App() {
           text += `   ${String.fromCharCode(65 + i)}. ${opt}\n`;
         });
       }
+      if (q.type === 'descriptive' && q.subQuestions) {
+        q.subQuestions.forEach((sub, i) => {
+          text += `   ${sub}\n`;
+        });
+      }
       if (q.hasOrChoice && q.orText) {
         text += `\n   --- OR ---\n\n`;
         text += `   ${q.orText} [${q.marks} Marks]\n`;
         if (q.orType === 'mcq' && q.orOptions) {
           q.orOptions.forEach((opt, i) => {
             text += `      ${String.fromCharCode(65 + i)}. ${opt}\n`;
+          });
+        }
+        if (q.orType === 'descriptive' && q.orSubQuestions) {
+          q.orSubQuestions.forEach((sub, i) => {
+            text += `      ${sub}\n`;
           });
         }
       }
@@ -214,6 +224,11 @@ function App() {
                   ${q.options.map((opt) => `<li>${opt}</li>`).join('')}
                 </ul>
               ` : ''}
+              ${q.type === 'descriptive' && q.subQuestions ? `
+                <div style="margin-left: 20px;">
+                  ${q.subQuestions.map((sub) => `<p>${sub}</p>`).join('')}
+                </div>
+              ` : ''}
               ${q.hasOrChoice && q.orText ? `
                 <div style="text-align: center; font-weight: bold; margin: 10px 0;">-- OR --</div>
                 <p>${q.orText}</p>
@@ -221,6 +236,11 @@ function App() {
                   <ul style="list-style-type: upper-alpha;">
                     ${q.orOptions.map((opt) => `<li>${opt}</li>`).join('')}
                   </ul>
+                ` : ''}
+                ${q.orType === 'descriptive' && q.orSubQuestions ? `
+                  <div style="margin-left: 20px;">
+                    ${q.orSubQuestions.map((sub) => `<p>${sub}</p>`).join('')}
+                  </div>
                 ` : ''}
               ` : ''}
             </div>
@@ -475,7 +495,7 @@ function App() {
                   <div className="space-y-2">
                     <label className="text-xs font-medium text-neutral-500 uppercase flex justify-between">
                       <span>Easy</span>
-                      <span className={`${params.difficultyLevels.easy + params.difficultyLevels.medium + params.difficultyLevels.hard !== 100 ? 'text-red-500' : 'text-neutral-900'}`}>{params.difficultyLevels.easy}%</span>
+                      <span className="text-neutral-900">{params.difficultyLevels.easy}%</span>
                     </label>
                     <input
                       type="range"
@@ -492,7 +512,7 @@ function App() {
                   <div className="space-y-2">
                     <label className="text-xs font-medium text-neutral-500 uppercase flex justify-between">
                       <span>Medium</span>
-                      <span className={`${params.difficultyLevels.easy + params.difficultyLevels.medium + params.difficultyLevels.hard !== 100 ? 'text-red-500' : 'text-neutral-900'}`}>{params.difficultyLevels.medium}%</span>
+                      <span className="text-neutral-900">{params.difficultyLevels.medium}%</span>
                     </label>
                     <input
                       type="range"
@@ -509,7 +529,7 @@ function App() {
                   <div className="space-y-2">
                     <label className="text-xs font-medium text-neutral-500 uppercase flex justify-between">
                       <span>Hard</span>
-                      <span className={`${params.difficultyLevels.easy + params.difficultyLevels.medium + params.difficultyLevels.hard !== 100 ? 'text-red-500' : 'text-neutral-900'}`}>{params.difficultyLevels.hard}%</span>
+                      <span className="text-neutral-900">{params.difficultyLevels.hard}%</span>
                     </label>
                     <input
                       type="range"
@@ -524,9 +544,6 @@ function App() {
                     />
                   </div>
                 </div>
-                {params.difficultyLevels.easy + params.difficultyLevels.medium + params.difficultyLevels.hard !== 100 && (
-                   <p className="text-xs text-red-500 mt-2">Percentage must exacty equal 100%.</p>
-                )}
               </div>
 
               <div className="pt-4 border-t border-neutral-100 space-y-2">
@@ -547,7 +564,7 @@ function App() {
             <div className="p-6 bg-neutral-50/50 border-t border-neutral-200 flex justify-end">
               <button
                 onClick={handleGenerate}
-                disabled={isGenerating || (params.difficultyLevels.easy + params.difficultyLevels.medium + params.difficultyLevels.hard !== 100)}
+                disabled={isGenerating}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-md font-medium text-sm transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isGenerating ? (
@@ -810,6 +827,17 @@ function App() {
                           <span className="font-semibold text-neutral-900 w-8">{index + 1}.</span>
                           <div className="flex-1">
                             <p className="text-neutral-900 text-base leading-relaxed whitespace-pre-wrap">{q.text}</p>
+                            
+                            {q.type === 'descriptive' && q.subQuestions && q.subQuestions.length > 0 && (
+                              <div className="mt-2 space-y-2 pl-2">
+                                {q.subQuestions.map((sub, i) => (
+                                  <div key={i} className="flex items-start text-sm">
+                                    <span className="text-neutral-800 whitespace-pre-wrap">{sub}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
                             {q.type === 'mcq' && q.options && (
                               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 pl-2">
                                 {q.options.map((opt, i) => (
@@ -825,6 +853,17 @@ function App() {
                               <div className="mt-6 pt-5 border-t border-dashed border-neutral-300">
                                 <div className="text-center font-bold text-neutral-500 mb-4 uppercase text-sm tracking-widest leading-none">OR</div>
                                 <p className="text-neutral-900 text-base leading-relaxed whitespace-pre-wrap">{q.orText}</p>
+                                
+                                {q.orType === 'descriptive' && q.orSubQuestions && q.orSubQuestions.length > 0 && (
+                                  <div className="mt-2 space-y-2 pl-2">
+                                    {q.orSubQuestions.map((sub, i) => (
+                                      <div key={i} className="flex items-start text-sm">
+                                        <span className="text-neutral-800 whitespace-pre-wrap">{sub}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
                                 {q.orType === 'mcq' && q.orOptions && (
                                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 pl-2">
                                     {q.orOptions.map((opt, i) => (
