@@ -1,6 +1,11 @@
 import { GoogleGenAI, Type, Schema } from '@google/genai';
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+function getAI() {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is missing. Please set it in the environment.");
+  }
+  return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+}
 
 export interface GeneratedQuestion {
   id: string;
@@ -110,6 +115,7 @@ ${params.pastQuestionsToAvoid ? `CRITICAL: Ensure that NONE of the following pas
   `;
 
   try {
+    const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
@@ -185,6 +191,7 @@ Output as a structured JSON object matching the requested schema.
   };
 
   try {
+    const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
