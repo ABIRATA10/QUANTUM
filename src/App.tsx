@@ -1,15 +1,56 @@
-import React, { useState, useRef } from 'react';
-import { Settings, FileText, BarChart3, Printer, RefreshCw, AlertCircle, Sparkles, BookOpen, Edit2, Trash2, Plus, Loader2, ArrowRight, Save, X, Download, ImageIcon, FileType, ChevronDown, File } from 'lucide-react';
-import { generateQuestionPaper, GeneratedQuestion, PaperGenerationParams, regenerateSingleQuestion } from './services/geminiService';
+import React, { useState, useRef, useEffect } from 'react';
+import { History, Lightbulb, Settings, FileText, BarChart3, Printer, RefreshCw, AlertCircle, Sparkles, BookOpen, Edit2, Trash2, Plus, Loader2, ArrowRight, Save, X, Download, ImageIcon, FileType, ChevronDown, File } from 'lucide-react';
+import { generateQuestionPaper, GeneratedQuestion, PaperGenerationParams, regenerateSingleQuestion, getRecommendedQuestions } from './services/geminiService';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import html2canvas from 'html2canvas';
 
+import { motion, AnimatePresence } from 'motion/react';
+
+interface ExamHistoryItem {
+  id: string;
+  createdAt: string;
+  params: PaperGenerationParams;
+  questions: GeneratedQuestion[];
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState<'create' | 'paper' | 'analytics'>('create');
+  const [history, setHistory] = useState<ExamHistoryItem[]>(() => {
+    const saved = localStorage.getItem('exam-history');
+    return saved ? JSON.parse(saved) : [];
+  });
+  useEffect(() => {
+    localStorage.setItem('exam-history', JSON.stringify(history));
+  }, [history]);
+
+  const [recommendedQuestions, setRecommendedQuestions] = useState<GeneratedQuestion[]>([]);
+  const [isFetchingRecommended, setIsFetchingRecommended] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const paperRef = useRef<HTMLDivElement>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    }
+  };
   
   const [params, setParams] = useState<PaperGenerationParams>({
     examTitle: 'Mid-Term Examination 2026',
@@ -25,7 +66,8 @@ function App() {
     questionFormats: 'Short Answer, Long Answer, MCQs',
     includeOrChoices: false,
     difficultyLevels: { easy: 30, medium: 50, hard: 20 },
-    pastQuestionsToAvoid: 'Explain Bubble Sort.\nWhat is a Binary Search Tree?'
+    pastQuestionsToAvoid: 'Explain Bubble Sort.\nWhat is a Binary Search Tree?',
+    topicTagsInput: 'Algorithms, Trees, Graphs'
   });
 
   const [questions, setQuestions] = useState<GeneratedQuestion[]>([]);
@@ -42,7 +84,24 @@ function App() {
       }
       const newQuestions = await generateQuestionPaper(params);
       setQuestions(newQuestions);
+      
+      const newHistoryItem: ExamHistoryItem = {
+        id: Math.random().toString(36).substring(7),
+        createdAt: new Date().toISOString(),
+        params: {...params},
+        questions: newQuestions
+      };
+      setHistory(prev => [newHistoryItem, ...prev]);
+
       setActiveTab('paper');
+      setSelectedTags([]);
+
+      // Fetch recommended questions
+      setIsFetchingRecommended(true);
+      getRecommendedQuestions(params, newQuestions).then(recs => {
+        setRecommendedQuestions(recs);
+      }).catch(err => console.error(err)).finally(() => setIsFetchingRecommended(false));
+
     } catch (err: any) {
       setError(err.message || 'An error occurred during generation.');
     } finally {
@@ -97,7 +156,11 @@ function App() {
     handleEditClick(newQ);
   };
 
-  const currentTotalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
+  const availableTags = Array.from(new Set(questions.flatMap(q => q.topicTags || [])));
+  const filteredQuestions = selectedTags.length > 0 
+    ? questions.filter(q => q.topicTags?.some(tag => selectedTags.includes(tag)))
+    : questions;
+  const currentTotalMarks = filteredQuestions.reduce((sum, q) => sum + q.marks, 0);
 
   // Analytics Data Preparation
   const COLORS = {
@@ -116,12 +179,12 @@ function App() {
   };
 
   const difficultyData = ['Easy', 'Medium', 'Hard'].map(level => {
-    const totalMarksForLevel = questions.filter(q => q.difficulty === level).reduce((sum, q) => sum + q.marks, 0);
+    const totalMarksForLevel = filteredQuestions.filter(q => q.difficulty === level).reduce((sum, q) => sum + q.marks, 0);
     return { name: level, value: totalMarksForLevel };
   }).filter(d => d.value > 0);
 
   const bloomsData = ['Remember', 'Understand', 'Apply', 'Analyze', 'Evaluate', 'Create'].map(level => {
-    const totalMarks = questions.filter(q => q.blooms_taxonomy === level).reduce((sum, q) => sum + q.marks, 0);
+    const totalMarks = filteredQuestions.filter(q => q.blooms_taxonomy === level).reduce((sum, q) => sum + q.marks, 0);
     return { name: level, value: totalMarks };
   }).filter(d => d.value > 0);
 
@@ -166,7 +229,7 @@ function App() {
     text += `Duration: ${params.duration} | Max Marks: ${currentTotalMarks}\n`;
     text += `--------------------------------------------------\n\n`;
 
-    questions.forEach((q, index) => {
+    filteredQuestions.forEach((q, index) => {
       text += `Q${index + 1}. ${q.text} [${q.marks} Marks]\n`;
       if (q.type === 'mcq' && q.options) {
         q.options.forEach((opt, i) => {
@@ -216,7 +279,7 @@ function App() {
           <hr/>
         </div>
         <div style="font-family: sans-serif; margin-top: 20px;">
-          ${questions.map((q, i) => `
+          ${filteredQuestions.map((q, i) => `
             <div style="margin-bottom: 20px;">
               <p><strong>Q${i + 1}.</strong> ${q.text} <span style="float:right;">[${q.marks} Marks]</span></p>
               ${q.type === 'mcq' && q.options ? `
@@ -301,45 +364,128 @@ function App() {
             </svg>
             <h1 className="text-xl tracking-[0.25em] font-serif uppercase text-[#fdfaf3]">Exam Author</h1>
           </div>
-          <nav className="flex space-x-1">
-            <button
-              onClick={() => setActiveTab('create')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'create' ? 'bg-[#3b2a1c] text-[#e6cda3]' : 'text-[#b48b59] hover:bg-[#5b432e] hover:text-[#e6cda3]'}`}
-            >
-              <div className="flex items-center space-x-2">
-                <Settings className="w-4 h-4" />
-                <span>Configure</span>
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('paper')}
-              disabled={questions.length === 0}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${questions.length === 0 ? 'opacity-50 cursor-not-allowed' : ''} ${activeTab === 'paper' ? 'bg-[#3b2a1c] text-[#e6cda3]' : 'text-[#b48b59] hover:bg-[#5b432e] hover:text-[#e6cda3]'}`}
-            >
-              <div className="flex items-center space-x-2">
-                <FileText className="w-4 h-4" />
-                <span>Paper</span>
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('analytics')}
-              disabled={questions.length === 0}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${questions.length === 0 ? 'opacity-50 cursor-not-allowed' : ''} ${activeTab === 'analytics' ? 'bg-[#3b2a1c] text-[#e6cda3]' : 'text-[#b48b59] hover:bg-[#5b432e] hover:text-[#e6cda3]'}`}
-            >
-              <div className="flex items-center space-x-2">
-                <BarChart3 className="w-4 h-4" />
-                <span>Analytics</span>
-              </div>
-            </button>
-          </nav>
+          <div className="flex items-center space-x-4">
+            <nav className="flex space-x-1">
+              <button
+                onClick={() => setActiveTab('create')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'create' ? 'bg-[#3b2a1c] text-[#e6cda3]' : 'text-[#b48b59] hover:bg-[#5b432e] hover:text-[#e6cda3]'}`}
+              >
+                <div className="flex items-center space-x-2">
+                  <Settings className="w-4 h-4" />
+                  <span>Configure</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('paper')}
+                disabled={questions.length === 0}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${questions.length === 0 ? 'opacity-50 cursor-not-allowed' : ''} ${activeTab === 'paper' ? 'bg-[#3b2a1c] text-[#e6cda3]' : 'text-[#b48b59] hover:bg-[#5b432e] hover:text-[#e6cda3]'}`}
+              >
+                <div className="flex items-center space-x-2">
+                  <FileText className="w-4 h-4" />
+                  <span>Paper</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('analytics')}
+                disabled={questions.length === 0}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${questions.length === 0 ? 'opacity-50 cursor-not-allowed' : ''} ${activeTab === 'analytics' ? 'bg-[#3b2a1c] text-[#e6cda3]' : 'text-[#b48b59] hover:bg-[#5b432e] hover:text-[#e6cda3]'}`}
+              >
+                <div className="flex items-center space-x-2">
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Analytics</span>
+                </div>
+              </button>
+            </nav>
+            {deferredPrompt && (
+              <button
+                onClick={handleInstallApp}
+                className="bg-[#b48b59] text-white hover:bg-[#a67c4e] px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-2 shadow-sm"
+              >
+                <Download className="w-4 h-4" />
+                <span>Install App</span>
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 print:p-0 print:m-0">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row gap-8 print:p-0 print:m-0 print:block">
+        
+        {/* Sidebar */}
+        <aside className="w-full lg:w-72 flex-shrink-0 space-y-6 print:hidden">
+          {/* History */}
+          <div className="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden">
+            <div className="p-4 border-b border-neutral-100 flex items-center space-x-2 bg-neutral-50/50">
+              <History className="w-4 h-4 text-neutral-600" />
+              <h3 className="font-semibold text-neutral-800">History Papers</h3>
+            </div>
+            <div className="p-2 space-y-1 max-h-[300px] overflow-y-auto">
+              {history.length === 0 && <p className="p-3 text-sm text-neutral-500 text-center">No history yet</p>}
+              {history.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setParams(item.params);
+                    setQuestions(item.questions);
+                    setActiveTab('paper');
+                    setSelectedTags([]);
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-md hover:bg-neutral-100 transition-colors"
+                >
+                  <p className="text-sm font-medium text-neutral-800 truncate">{item.params.examTitle}</p>
+                  <p className="text-xs text-neutral-500">{new Date(item.createdAt).toLocaleDateString()} • {item.questions.length} Qs</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Recommended Questions */}
+          {activeTab === 'paper' && (
+            <div className="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden">
+              <div className="p-4 border-b border-neutral-100 flex items-center space-x-2 bg-[#fdfaf3]">
+                <Lightbulb className="w-4 h-4 text-amber-500" />
+                <h3 className="font-semibold text-neutral-800">Recommended Additions</h3>
+              </div>
+              <div className="p-4 space-y-4">
+                {isFetchingRecommended ? (
+                  <div className="flex flex-col items-center justify-center py-6 space-y-3">
+                    <Loader2 className="w-6 h-6 animate-spin text-[#b48b59]" />
+                    <p className="text-xs text-neutral-500">Finding good questions...</p>
+                  </div>
+                ) : recommendedQuestions.length === 0 ? (
+                  <p className="text-sm text-neutral-500 text-center">No recommendations yet.</p>
+                ) : (
+                  recommendedQuestions.map((q, idx) => (
+                    <div key={idx} className="border border-neutral-100 bg-neutral-50 p-3 rounded-lg flex flex-col space-y-2">
+                       <p className="text-sm text-neutral-800 line-clamp-3">{q.text}</p>
+                       <div className="flex justify-between items-center">
+                         <span className="text-xs text-neutral-500">{q.marks} Marks • {q.difficulty}</span>
+                         <button 
+                           onClick={() => {
+                             const newQ = {...q, id: Math.random().toString(36).substring(7)};
+                             setQuestions(current => [...current, newQ]);
+                             setRecommendedQuestions(current => current.filter((_, i) => i !== idx));
+                           }}
+                           className="text-xs font-medium text-[#b48b59] hover:text-[#a67c4e] flex items-center space-x-1"
+                         >
+                           <Plus className="w-3 h-3" />
+                           <span>Add</span>
+                         </button>
+                       </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </aside>
+
+        <main className="flex-1 min-w-0">
+        <AnimatePresence mode="wait">
         
         {/* TAB: CREATE */}
         {activeTab === 'create' && (
-          <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden print:hidden">
+          <motion.div key="create" initial={{opacity:0, y: 10}} animate={{opacity:1, y: 0}} exit={{opacity:0, y:-10}} className="max-w-3xl mx-auto bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden print:hidden">
             <div className="p-6 border-b border-neutral-100 bg-neutral-50/50">
               <h2 className="text-lg font-semibold text-neutral-800">Exam Parameters</h2>
               <p className="text-sm text-neutral-500 mt-1">Configure the structure and difficulty of your question paper.</p>
@@ -360,7 +506,7 @@ function App() {
                     type="text"
                     value={params.examTitle}
                     onChange={(e) => setParams({ ...params, examTitle: e.target.value })}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#b48b59] focus:border-transparent text-sm"
                     placeholder="e.g. Mid-Term Examination 2026"
                   />
                 </div>
@@ -370,7 +516,7 @@ function App() {
                     type="text"
                     value={params.examSubtitle}
                     onChange={(e) => setParams({ ...params, examSubtitle: e.target.value })}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#b48b59] focus:border-transparent text-sm"
                     placeholder="e.g. Department of Computer Science, XYZ University"
                   />
                 </div>
@@ -381,7 +527,7 @@ function App() {
                     type="text"
                     value={params.subject}
                     onChange={(e) => setParams({ ...params, subject: e.target.value })}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#b48b59] focus:border-transparent text-sm"
                     placeholder="e.g. Database Management Systems"
                   />
                 </div>
@@ -391,7 +537,7 @@ function App() {
                     type="text"
                     value={params.subjectCode}
                     onChange={(e) => setParams({ ...params, subjectCode: e.target.value })}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#b48b59] focus:border-transparent text-sm"
                     placeholder="e.g. CS201"
                   />
                 </div>
@@ -402,7 +548,7 @@ function App() {
                     type="text"
                     value={params.duration}
                     onChange={(e) => setParams({ ...params, duration: e.target.value })}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#b48b59] focus:border-transparent text-sm"
                     placeholder="e.g. 3 Hours"
                   />
                 </div>
@@ -411,7 +557,7 @@ function App() {
                   <select
                     value={params.language}
                     onChange={(e) => setParams({ ...params, language: e.target.value })}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm bg-white"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#b48b59] focus:border-transparent text-sm bg-white"
                   >
                     <option value="English">English</option>
                     <option value="Hindi">Hindi</option>
@@ -427,7 +573,7 @@ function App() {
                     type="text"
                     value={params.gradeLevel}
                     onChange={(e) => setParams({ ...params, gradeLevel: e.target.value })}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#b48b59] focus:border-transparent text-sm"
                     placeholder="e.g. Undergraduate Year 2"
                   />
                 </div>
@@ -439,9 +585,21 @@ function App() {
                   value={params.topics}
                   onChange={(e) => setParams({ ...params, topics: e.target.value })}
                   rows={2}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#b48b59] focus:border-transparent text-sm"
                   placeholder="e.g. Normalization, SQL Joins, Indexing..."
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-neutral-700">Topic Tags for Filtering (Optional)</label>
+                <input
+                  type="text"
+                  value={params.topicTagsInput || ''}
+                  onChange={(e) => setParams({ ...params, topicTagsInput: e.target.value })}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#b48b59] focus:border-transparent text-sm"
+                  placeholder="e.g. Hooks, Context API, Redux"
+                />
+                <p className="text-xs text-neutral-500">Provide comma-separated tags you want the AI to apply to generated questions.</p>
               </div>
 
               <div className="space-y-2">
@@ -450,7 +608,7 @@ function App() {
                   type="text"
                   value={params.questionFormats}
                   onChange={(e) => setParams({ ...params, questionFormats: e.target.value })}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#b48b59] focus:border-transparent text-sm"
                   placeholder="e.g. MCQs, Short Answers, Long Answers"
                 />
               </div>
@@ -461,7 +619,7 @@ function App() {
                     type="checkbox"
                     checked={params.includeOrChoices}
                     onChange={(e) => setParams({ ...params, includeOrChoices: e.target.checked })}
-                    className="w-4 h-4 text-amber-600 border-neutral-300 rounded focus:ring-amber-500"
+                    className="w-4 h-4 text-[#b48b59] border-neutral-300 rounded focus:ring-[#b48b59]"
                   />
                   <span className="text-sm font-medium text-neutral-700">Include Internal Choices ("OR" questions for descriptive sections)</span>
                 </label>
@@ -476,7 +634,7 @@ function App() {
                       type="number"
                       value={params.totalMarks}
                       onChange={(e) => setParams({ ...params, totalMarks: parseInt(e.target.value) || 0 })}
-                      className="w-20 px-2 py-1 border border-neutral-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      className="w-20 px-2 py-1 border border-neutral-300 rounded focus:outline-none focus:ring-2 focus:ring-[#b48b59]"
                       min={10}
                       max={200}
                     />
@@ -491,7 +649,7 @@ function App() {
                     type="text"
                     value={params.marksPattern || ''}
                     onChange={(e) => setParams({ ...params, marksPattern: e.target.value })}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#b48b59] focus:border-transparent text-sm"
                     placeholder="e.g. 10 questions of 1 mark, 5 questions of 4 marks, 2 questions of 10 marks"
                   />
                 </div>
@@ -560,7 +718,7 @@ function App() {
                   value={params.pastQuestionsToAvoid}
                   onChange={(e) => setParams({ ...params, pastQuestionsToAvoid: e.target.value })}
                   rows={4}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm font-mono bg-neutral-50"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#b48b59] focus:border-transparent text-sm font-mono bg-neutral-50"
                   placeholder="Paste questions you've used in recent exams to ensure AI generates novel variations."
                 />
               </div>
@@ -585,13 +743,36 @@ function App() {
                 )}
               </button>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* TAB: PAPER */}
         {activeTab === 'paper' && questions.length > 0 && (
-          <div className="max-w-4xl mx-auto print:max-w-full">
+          <motion.div key="paper" initial={{opacity:0, y: 10}} animate={{opacity:1, y: 0}} exit={{opacity:0, y:-10}} className="max-w-4xl mx-auto print:max-w-full">
             <div className="flex justify-between items-center mb-6 print:hidden">
+              <div className="flex flex-col space-y-2">
+                
+                {availableTags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <span className="text-sm text-neutral-500">Filter by Topics:</span>
+                    {availableTags.map(tag => {
+                      const isSelected = selectedTags.includes(tag);
+                      return (
+                        <button 
+                          key={tag}
+                          onClick={() => {
+                            if (isSelected) setSelectedTags(selectedTags.filter(t => t !== tag));
+                            else setSelectedTags([...selectedTags, tag]);
+                          }}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${isSelected ? 'bg-[#b48b59] text-white border-[#b48b59]' : 'bg-white text-neutral-600 border-neutral-300 hover:border-[#b48b59]'}`}
+                        >
+                          {tag}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
               <h2 className="text-2xl font-bold text-neutral-900">Generated Exam Paper</h2>
               <div className="flex items-center space-x-3">
                 <div className={`px-3 py-1.5 rounded-full text-xs font-medium border ${currentTotalMarks === params.totalMarks ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>
@@ -650,7 +831,7 @@ function App() {
               </div>
 
               <div className="space-y-8 print:space-y-6">
-                {questions.map((q, index) => (
+                {filteredQuestions.map((q, index) => (
                   <div key={q.id} className="relative group">
                     
                     {editingQuestionId === q.id && editingQuestionData ? (
@@ -659,7 +840,7 @@ function App() {
                           <textarea
                             value={editingQuestionData.text}
                             onChange={e => setEditingQuestionData({ ...editingQuestionData, text: e.target.value })}
-                            className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:ring-2 focus:ring-amber-500 text-sm h-24"
+                            className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:ring-2 focus:ring-[#b48b59] text-sm h-24"
                             placeholder="Question text..."
                           />
                           <div className="flex space-x-4 flex-wrap gap-y-4">
@@ -669,7 +850,7 @@ function App() {
                                 type="text"
                                 value={editingQuestionData.id || ''}
                                 onChange={e => setEditingQuestionData({ ...editingQuestionData, id: e.target.value })}
-                                className="w-24 px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-amber-500"
+                                className="w-24 px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-[#b48b59]"
                               />
                             </div>
                             <div className="space-y-1">
@@ -678,7 +859,7 @@ function App() {
                                 type="number"
                                 value={editingQuestionData.marks}
                                 onChange={e => setEditingQuestionData({ ...editingQuestionData, marks: parseInt(e.target.value) || 0 })}
-                                className="w-20 px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-amber-500"
+                                className="w-20 px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-[#b48b59]"
                               />
                             </div>
                             <div className="space-y-1">
@@ -693,7 +874,7 @@ function App() {
                                     options: newType === 'mcq' ? (editingQuestionData.options?.length ? editingQuestionData.options : ['', '', '', '']) : undefined
                                   });
                                 }}
-                                className="px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-amber-500 bg-white"
+                                className="px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-[#b48b59] bg-white"
                               >
                                 <option value="descriptive">Descriptive (Short/Long)</option>
                                 <option value="mcq">Multiple Choice (MCQ)</option>
@@ -704,7 +885,7 @@ function App() {
                               <select
                                 value={editingQuestionData.difficulty}
                                 onChange={e => setEditingQuestionData({ ...editingQuestionData, difficulty: e.target.value as any })}
-                                className="px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-amber-500 bg-white"
+                                className="px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-[#b48b59] bg-white"
                               >
                                 <option>Easy</option>
                                 <option>Medium</option>
@@ -716,7 +897,7 @@ function App() {
                               <select
                                 value={editingQuestionData.blooms_taxonomy}
                                 onChange={e => setEditingQuestionData({ ...editingQuestionData, blooms_taxonomy: e.target.value as any })}
-                                className="px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-amber-500 bg-white"
+                                className="px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-[#b48b59] bg-white"
                               >
                                 <option>Remember</option>
                                 <option>Understand</option>
@@ -743,7 +924,7 @@ function App() {
                                         newOpts[i] = e.target.value;
                                         setEditingQuestionData({ ...editingQuestionData, options: newOpts });
                                       }}
-                                      className="flex-1 px-3 py-1.5 border border-neutral-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500"
+                                      className="flex-1 px-3 py-1.5 border border-neutral-300 rounded-md text-sm focus:ring-2 focus:ring-[#b48b59]"
                                       placeholder={`Option ${String.fromCharCode(65 + i)}`}
                                     />
                                   </div>
@@ -758,7 +939,7 @@ function App() {
                                 type="checkbox" 
                                 checked={editingQuestionData.hasOrChoice || false}
                                 onChange={e => setEditingQuestionData({...editingQuestionData, hasOrChoice: e.target.checked})}
-                                className="w-4 h-4 text-amber-600 rounded border-neutral-300 focus:ring-amber-500"
+                                className="w-4 h-4 text-[#b48b59] rounded border-neutral-300 focus:ring-[#b48b59]"
                               />
                               <span className="text-sm font-medium text-neutral-700">Include an "OR" Alternative Question</span>
                             </label>
@@ -777,7 +958,7 @@ function App() {
                                         orOptions: newType === 'mcq' ? (editingQuestionData.orOptions?.length ? editingQuestionData.orOptions : ['', '', '', '']) : undefined
                                       });
                                     }}
-                                    className="px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-amber-500 bg-white"
+                                    className="px-2 py-1 border border-neutral-300 rounded text-sm focus:ring-2 focus:ring-[#b48b59] bg-white"
                                   >
                                     <option value="descriptive">Descriptive (Short/Long)</option>
                                     <option value="mcq">Multiple Choice (MCQ)</option>
@@ -786,7 +967,7 @@ function App() {
                                 <textarea
                                   value={editingQuestionData.orText || ''}
                                   onChange={e => setEditingQuestionData({ ...editingQuestionData, orText: e.target.value })}
-                                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:ring-2 focus:ring-amber-500 text-sm h-24"
+                                  className="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:ring-2 focus:ring-[#b48b59] text-sm h-24"
                                   placeholder="Alternative Question text..."
                                 />
                                 {editingQuestionData.orType === 'mcq' && (
@@ -804,7 +985,7 @@ function App() {
                                               newOpts[i] = e.target.value;
                                               setEditingQuestionData({ ...editingQuestionData, orOptions: newOpts });
                                             }}
-                                            className="flex-1 px-3 py-1.5 border border-neutral-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500"
+                                            className="flex-1 px-3 py-1.5 border border-neutral-300 rounded-md text-sm focus:ring-2 focus:ring-[#b48b59]"
                                             placeholder={`Option ${String.fromCharCode(65 + i)}`}
                                           />
                                         </div>
@@ -924,7 +1105,7 @@ function App() {
                           <button
                             onClick={() => handleRegenerateQuestion(q)}
                             disabled={isRegeneratingId !== null}
-                            className="flex items-center space-x-1 text-xs text-amber-600 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-2.5 py-1.5 rounded transition-colors disabled:opacity-50 font-medium"
+                            className="flex items-center space-x-1 text-xs text-[#b48b59] hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-2.5 py-1.5 rounded transition-colors disabled:opacity-50 font-medium"
                           >
                             {isRegeneratingId === q.id ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -944,7 +1125,7 @@ function App() {
               <div className="mt-8 flex justify-center print:hidden">
                 <button
                   onClick={handleAddQuestion}
-                  className="flex items-center space-x-2 px-4 py-2 border-2 border-dashed border-neutral-300 text-neutral-600 rounded-lg hover:border-amber-400 hover:text-amber-600 transition-colors bg-neutral-50/50 hover:bg-amber-50/50 w-full justify-center font-medium"
+                  className="flex items-center space-x-2 px-4 py-2 border-2 border-dashed border-neutral-300 text-neutral-600 rounded-lg hover:border-amber-400 hover:text-[#b48b59] transition-colors bg-neutral-50/50 hover:bg-amber-50/50 w-full justify-center font-medium"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Add Question Manually</span>
@@ -955,12 +1136,12 @@ function App() {
                 *** END OF PAPER ***
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* TAB: ANALYTICS */}
         {activeTab === 'analytics' && questions.length > 0 && (
-          <div className="max-w-5xl mx-auto print:hidden space-y-6">
+          <motion.div key="analytics" initial={{opacity:0, y: 10}} animate={{opacity:1, y: 0}} exit={{opacity:0, y:-10}} className="max-w-5xl mx-auto print:hidden space-y-6">
             <div className="mb-6 flex justify-between items-end">
               <div>
                 <h2 className="text-2xl font-bold text-neutral-900">Paper Analytics</h2>
@@ -968,7 +1149,7 @@ function App() {
               </div>
               <button
                 onClick={() => setActiveTab('paper')}
-                className="text-sm font-medium text-amber-600 hover:text-amber-700 flex items-center group"
+                className="text-sm font-medium text-[#b48b59] hover:text-amber-700 flex items-center group"
               >
                 Back to Paper <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
               </button>
@@ -1031,10 +1212,11 @@ function App() {
               </div>
 
             </div>
-          </div>
+          </motion.div>
         )}
-
+        </AnimatePresence>
       </main>
+      </div>
     </div>
   );
 }

@@ -21,9 +21,11 @@ export interface GeneratedQuestion {
   marks: number;
   blooms_taxonomy: 'Remember' | 'Understand' | 'Apply' | 'Analyze' | 'Evaluate' | 'Create';
   difficulty: 'Easy' | 'Medium' | 'Hard';
+  topicTags?: string[];
 }
 
 export interface PaperGenerationParams {
+  topicTagsInput?: string;
   examTitle: string;
   examSubtitle: string;
   subjectCode: string;
@@ -69,6 +71,11 @@ const questionSchema: Schema = {
             type: Type.STRING,
             enum: ['Easy', 'Medium', 'Hard'],
             description: "The difficulty level of the question"
+          },
+          topicTags: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: "1-3 specific topic tags summarizing the content of this question."
           }
         },
         required: ["id", "type", "text", "marks", "blooms_taxonomy", "difficulty"]
@@ -89,7 +96,7 @@ You are an expert academic curriculum designer and exam creator.
 Create an exam paper for the following context:
 - Subject: ${params.subject} (Code: ${params.subjectCode})
 - Grade/Level: ${params.gradeLevel}
-- Topics Covered: ${params.topics}
+- Topics Covered: ${params.topics} ${params.topicTagsInput ? '- Use these specific topic tags: ' + params.topicTagsInput : ''}
 - Question Formats allowed: ${params.questionFormats}
 - Total Marks for the Paper: ${params.totalMarks}
 ${params.marksPattern ? `- Requested Marks Pattern: ${params.marksPattern}` : ''}
@@ -97,6 +104,7 @@ ${params.marksPattern ? `- Requested Marks Pattern: ${params.marksPattern}` : ''
 
 Requirements:
 1. Generate a diverse set of questions in ${params.language}.
+1a. CRITICAL: For each question, YOU MUST provide an array of exactly 1-3 strings in the 'topicTags' field, representing the topics it covers.
 2. The total sum of marks for all questions MUST EXACTLY equal ${params.totalMarks}.
 ${params.marksPattern ? `3. You MUST STRONGLY ADHERE to the requested marks pattern: ${params.marksPattern}` : ''}
 4. Follow this approximate difficulty distribution: ${easyPct}% Easy, ${mediumPct}% Medium, ${hardPct}% Hard.
@@ -185,6 +193,10 @@ Output as a structured JSON object matching the requested schema.
       difficulty: {
         type: Type.STRING,
         enum: ['Easy', 'Medium', 'Hard'],
+      },
+      topicTags: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING }
       }
     },
     required: ["id", "type", "text", "marks", "blooms_taxonomy", "difficulty"]
@@ -213,5 +225,46 @@ Output as a structured JSON object matching the requested schema.
   } catch (error) {
     console.error("Error regenerating question:", error);
     throw new Error("Failed to regenerate question. Please try again.");
+  }
+}
+
+export async function getRecommendedQuestions(params: PaperGenerationParams, currentQuestions: GeneratedQuestion[]): Promise<GeneratedQuestion[]> {
+  const prompt = `
+You are an expert academic curriculum designer. Based on the current exam paper configuration, recommend 3 highly relevant and interesting questions that could be added to this paper.
+These questions should cover important concepts from the topics but NOT repeat any existing questions.
+
+Context for the Exam Paper:
+- Subject: ${params.subject}
+- Grade/Level: ${params.gradeLevel}
+- Topics Covered: ${params.topics}
+
+Existing Questions (Do NOT repeat these):
+${currentQuestions.slice(0, 10).map(q => '- ' + q.text).join('\n')}
+
+Requirements:
+1. Provide exactly 3 recommended questions.
+2. Ensure they are a mix of difficulties and types.
+3. Output as JSON.
+`;
+  try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: questionSchema,
+        temperature: 0.7,
+      }
+    });
+
+    if (response.text) {
+      const parsed = JSON.parse(response.text);
+      return parsed.questions as GeneratedQuestion[];
+    }
+    return [];
+  } catch (error) {
+    console.error("Error generating recommended questions:", error);
+    return [];
   }
 }
