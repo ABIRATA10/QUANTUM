@@ -134,7 +134,28 @@ ${params.numberOfQuestions ? `1d. CRITICAL: You MUST generate EXACTLY ${params.n
 ${params.marksPattern ? `3. You MUST STRONGLY ADHERE to the requested marks pattern: ${params.marksPattern}` : ''}
 4. Follow this approximate difficulty distribution: ${easyPct}% Easy, ${mediumPct}% Medium, ${hardPct}% Hard.
 5. Ensure a good mix of Bloom's Taxonomy levels appropriate for the difficulty.
-6. Provide the output in structured JSON.
+6. Output MUST be ONLY valid JSON matching this schema:
+    {
+      "questions": [
+        {
+          "id": "string",
+          "type": "descriptive" | "mcq",
+          "text": "string",
+          "subQuestions": ["string"] (optional),
+          "options": ["string"] (exact 4 if mcq),
+          "hasOrChoice": boolean (optional),
+          "orType": "descriptive" | "mcq" (optional),
+          "orText": "string" (optional),
+          "orSubQuestions": ["string"] (optional),
+          "orOptions": ["string"] (optional),
+          "marks": number,
+          "blooms_taxonomy": "Remember" | "Understand" | "Apply" | "Analyze" | "Evaluate" | "Create",
+          "difficulty": "Easy" | "Medium" | "Hard",
+          "topicTags": ["string"] (1-3 strings)
+        }
+      ]
+    }
+    DO NOT wrap the output in markdown code blocks like \`\`\`json, just return the raw JSON string.
 7. For 'mcq' type questions, you MUST provide exactly 4 options in the 'options' array.
 ${params.includeOrChoices ? `8. CRITICAL: You MUST include internal alternatives ("OR" choices) for approximately 20-30% of the questions.
    - To do this, set 'hasOrChoice' to true.
@@ -155,8 +176,6 @@ ${params.pastQuestionsToAvoid ? `CRITICAL: Ensure that NONE of the following pas
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
-        responseMimeType: 'application/json',
-        responseSchema: questionSchema,
         temperature: 0.7,
       }
     });
@@ -196,7 +215,24 @@ ${contextParams.includeOrChoices ? "5. You may also include an 'OR' alternative 
 6. DO NOT repeat any of the following questions currently in the paper:
 ${allCurrentQuestions.map(q => '- ' + q.text).join('\n')}
 
-Output as a structured JSON object matching the requested schema.
+Output as a structured JSON object exactly matching this schema:
+    {
+      "id": "string",
+      "type": "descriptive" | "mcq",
+      "text": "string",
+      "subQuestions": ["string"] (optional),
+      "options": ["string"] (exact 4 if mcq),
+      "hasOrChoice": boolean (optional),
+      "orType": "descriptive" | "mcq" (optional),
+      "orText": "string" (optional),
+      "orSubQuestions": ["string"] (optional),
+      "orOptions": ["string"] (optional),
+      "marks": number,
+      "blooms_taxonomy": "Remember" | "Understand" | "Apply" | "Analyze" | "Evaluate" | "Create",
+      "difficulty": "Easy" | "Medium" | "Hard",
+      "topicTags": ["string"] (optional)
+    }
+    DO NOT wrap the output in markdown code blocks like \`\`\`json, just return the raw JSON string.
   `;
 
   const singleQuestionSchema: Schema = {
@@ -236,8 +272,6 @@ Output as a structured JSON object matching the requested schema.
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
-        responseMimeType: 'application/json',
-        responseSchema: singleQuestionSchema,
         temperature: 0.7,
       }
     });
@@ -272,7 +306,28 @@ ${currentQuestions.slice(0, 10).map(q => '- ' + q.text).join('\n')}
 Requirements:
 1. Provide exactly 3 recommended questions.
 2. Ensure they are a mix of difficulties and types.
-3. Output as JSON.
+3. Output MUST be ONLY valid JSON matching this schema:
+    {
+      "questions": [
+        {
+          "id": "string",
+          "type": "descriptive" | "mcq",
+          "text": "string",
+          "subQuestions": ["string"] (optional),
+          "options": ["string"] (exact 4 if mcq),
+          "hasOrChoice": boolean (optional),
+          "orType": "descriptive" | "mcq" (optional),
+          "orText": "string" (optional),
+          "orSubQuestions": ["string"] (optional),
+          "orOptions": ["string"] (optional),
+          "marks": number,
+          "blooms_taxonomy": "Remember" | "Understand" | "Apply" | "Analyze" | "Evaluate" | "Create",
+          "difficulty": "Easy" | "Medium" | "Hard",
+          "topicTags": ["string"] (optional)
+        }
+      ]
+    }
+    DO NOT wrap the output in markdown code blocks like \`\`\`json, just return the raw JSON.
 `;
   try {
     const ai = getAI();
@@ -281,8 +336,6 @@ Requirements:
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
-        responseMimeType: 'application/json',
-        responseSchema: questionSchema,
         temperature: 0.7,
       }
     });
