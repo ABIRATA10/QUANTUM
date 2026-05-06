@@ -11,6 +11,37 @@ function getAI() {
   return new GoogleGenAI({ apiKey });
 }
 
+async function generateWithRetry(ai: GoogleGenAI, request: any, maxRetries = 3) {
+  let attempt = 0;
+  while (attempt < maxRetries) {
+    try {
+      return await ai.models.generateContent(request);
+    } catch (error: any) {
+      const isRetryable = error && (
+        error.status === 503 || 
+        error.status === 500 || 
+        error.status === 502 || 
+        error.status === 504 || 
+        error.status === 'UNAVAILABLE' || 
+        error.status === 429 || 
+        error.status === 'RESOURCE_EXHAUSTED' || 
+        (error.message && (error.message.includes('503') || error.message.includes('500') || error.message.includes('502') || error.message.includes('504') || error.message.includes('fetch failed')))
+      );
+
+      if (isRetryable) {
+        attempt++;
+        if (attempt >= maxRetries) throw error;
+        // Exponential backoff
+        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+        console.warn(`Gemini API unavailable or rate limited. Retrying in ${Math.round(delay)}ms... (Attempt ${attempt}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        throw error;
+      }
+    }
+  }
+}
+
 export interface GeneratedQuestion {
   id: string;
   type: 'descriptive' | 'mcq';
@@ -171,7 +202,7 @@ ${params.pastQuestionsToAvoid ? `CRITICAL: Ensure that NONE of the following pas
 
   try {
     const ai = getAI();
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
@@ -267,7 +298,7 @@ Output as a structured JSON object exactly matching this schema:
 
   try {
     const ai = getAI();
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
@@ -331,7 +362,7 @@ Requirements:
 `;
   try {
     const ai = getAI();
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
